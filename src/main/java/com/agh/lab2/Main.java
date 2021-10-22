@@ -11,11 +11,13 @@ class Counter {
     public void inc() {
         _val++;
         op++;
+        System.out.println(_val);
     }
 
     public void dec() {
         _val--;
         op++;
+        System.out.println(_val);
     }
 
     public int value() {
@@ -27,114 +29,117 @@ class Counter {
     }
 }
 
-//class countingSemaphore{
-//    private final Queue<Semafor> waitingThreads = new LinkedList<>();
-//    private int _czeka = 0;
-//
-//    public synchronized void P(Semafor semafor) {
-//        waitingThreads.add(semafor);
-//        _czeka++;
-//        while (!_stan) {
-//            try {
-//                wait();
-//            } catch (InterruptedException e) {
-//                System.out.println(e.getMessage());
-//            }
-//        }
-//        _czeka--;
-//        _stan = false;
-//    }
-//
-//    public synchronized void V() {
-//        if (_czeka > 0) {
-//            this.notify();
-//        }
-//        _stan = true;
-//    }
-//}`
+class CountingSemaphore {
+    private int counter = 1;
+    Semaphore canUseResources = new Semaphore();
+    Semaphore canChangeCounterValue = new Semaphore();
 
-class Semafor {
-    private boolean _stan = true;
-    private int _czeka = 0;
+    synchronized void P() {
+        canChangeCounterValue.P();
+        counter--;
+        if (counter <= 0) {
+            canUseResources.P();
+        }
+        canChangeCounterValue.V();
+    }
 
-    public synchronized void P() {
-        _czeka++;
-        while (!_stan) {
+    synchronized void V() {
+        canChangeCounterValue.P();
+        counter++;
+        if (counter > 0) {
+            canUseResources.V();
+        }
+        canChangeCounterValue.V();
+    }
+}
+
+class Semaphore {
+    private boolean state = true;
+    private int waitCounter = 0;
+
+    synchronized void P() {
+        waitCounter++;
+        while (!state) {
             try {
                 wait();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         }
-        _stan = false;
-        _czeka--;
+        state = false;
+        waitCounter--;
     }
 
-    public synchronized void V() {
-        if (_czeka > 0) {
+    synchronized void V() {
+        if (waitCounter > 0) {
             this.notify();
         }
-        _stan = true;
+        state = true;
     }
 }
 
 class IThread extends Thread {
     private final Counter counter;
-    private final Semafor semafor;
+    private final CountingSemaphore countingSemaphore;
 
-    IThread(Counter counter, Semafor semafor) {
+    IThread(Counter counter, CountingSemaphore countingSemaphore) {
         this.counter = counter;
-        this.semafor = semafor;
+        this.countingSemaphore = countingSemaphore;
     }
 
     @Override
     public void run() {
         for (int i = 0; i < 100000; i++) {
-            this.semafor.P();
+            this.countingSemaphore.P();
             counter.inc();
-            this.semafor.V();
+            this.countingSemaphore.V();
         }
     }
 }
 
 class DThread extends Thread {
     private final Counter counter;
-    private final Semafor semafor;
+    private final CountingSemaphore countingSemaphore;
 
-    DThread(Counter counter, Semafor semafor) {
+    DThread(Counter counter, CountingSemaphore countingSemaphore) {
         this.counter = counter;
-        this.semafor = semafor;
+        this.countingSemaphore = countingSemaphore;
     }
 
     @Override
     public void run() {
         for (int i = 0; i < 100000; i++) {
-            this.semafor.P();
+            this.countingSemaphore.P();
             counter.dec();
-            this.semafor.V();
+            this.countingSemaphore.V();
         }
     }
 }
 
 class Race {
     public static void main(String[] args) {
-        Counter cnt;
-        IThread iThread;
-        DThread dThread;
-        cnt = new Counter(0);
-        Semafor semafor = new Semafor();
-        iThread = new IThread(cnt, semafor);
-        dThread = new DThread(cnt, semafor);
-        iThread.start();
-        dThread.start();
-        try {
-            iThread.join();
-            dThread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        for (int i = 0; i < 5; i++) {
+
+            Counter cnt;
+            IThread iThread;
+            DThread dThread;
+            cnt = new Counter(0);
+            CountingSemaphore countingSemaphore = new CountingSemaphore();
+
+            iThread = new IThread(cnt, countingSemaphore);
+            dThread = new DThread(cnt, countingSemaphore);
+            iThread.start();
+            dThread.start();
+            try {
+                iThread.join();
+                dThread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+            System.out.println("Stan= " + cnt.value());
+            System.out.println("Wykonane operacje= " + cnt.getOp());
         }
-        System.out.println("Stan= " + cnt.value());
-        System.out.println("OP: " + cnt.getOp());
     }
 }
 
