@@ -11,13 +11,13 @@ class Counter {
     public void inc() {
         _val++;
         op++;
-        System.out.println(_val);
+//        System.out.println(_val);
     }
 
     public void dec() {
         _val--;
         op++;
-        System.out.println(_val);
+//        System.out.println(_val);
     }
 
     public int value() {
@@ -34,21 +34,24 @@ class CountingSemaphore {
     Semaphore canUseResources = new Semaphore();
     Semaphore canChangeCounterValue = new Semaphore();
 
-    synchronized void P() {
+    void P() {
         canChangeCounterValue.P();
-        counter--;
         if (counter <= 0) {
+            counter--;
+            canChangeCounterValue.V();
             canUseResources.P();
+        } else {
+            counter--;
+            canChangeCounterValue.V();
         }
-        canChangeCounterValue.V();
     }
 
-    synchronized void V() {
+    void V() {
         canChangeCounterValue.P();
-        counter++;
-        if (counter > 0) {
+        if (counter < 0) {
             canUseResources.V();
         }
+        counter++;
         canChangeCounterValue.V();
     }
 }
