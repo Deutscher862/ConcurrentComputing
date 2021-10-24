@@ -31,8 +31,8 @@ class Counter {
 
 class CountingSemaphore {
     private int counter = 1;
-    Semaphore canUseResources = new Semaphore();
-    Semaphore canChangeCounterValue = new Semaphore();
+    private final Semaphore canChangeCounterValue = new Semaphore();
+    private final Semaphore canUseResources = new Semaphore();
 
     void P() {
         canChangeCounterValue.P();
@@ -121,8 +121,7 @@ class DThread extends Thread {
 
 class Race {
     public static void main(String[] args) {
-        for (int i = 0; i < 5; i++) {
-
+        for (int i = 0; i < 10; i++) {
             Counter cnt;
             IThread iThread;
             DThread dThread;
@@ -145,4 +144,3 @@ class Race {
         }
     }
 }
-
