@@ -1,4 +1,4 @@
-package com.agh.lab3;
+package com.agh.lab3.semaphore;
 
 import java.util.concurrent.TimeUnit;
 
@@ -52,15 +52,17 @@ class BufferNode {
     BufferNode(int value) {
         this.value = value;
     }
-
-    boolean hasNext() {
-        return next != null;
-    }
 }
 
 class Buffer {
     BufferNode head;
     BufferNode tail;
+    private final int N;
+    private int currentSize = 0;
+
+    Buffer(int n) {
+        N = n;
+    }
 
     public void put(int value) {
         if (head == null) {
@@ -72,16 +74,18 @@ class Buffer {
             tail.next = new BufferNode(value);
             tail = tail.next;
         }
+        currentSize++;
     }
 
     public int get() {
         int res = head.value;
         head = head.next;
+        currentSize--;
         return res;
     }
 
     boolean isEmpty() {
-        return head == null;
+        return currentSize == 0;
     }
 }
 
@@ -113,7 +117,7 @@ class Semaphore {
 class PKmon {
     public static void main(String[] args) {
         Semaphore semaphore = new Semaphore();
-        Buffer buffer = new Buffer();
+        Buffer buffer = new Buffer(10);
 
         Consumer consumer = new Consumer(semaphore, buffer);
         Producer producer = new Producer(semaphore, buffer);
