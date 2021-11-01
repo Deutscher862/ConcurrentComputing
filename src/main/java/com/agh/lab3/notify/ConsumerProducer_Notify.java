@@ -1,6 +1,9 @@
 package com.agh.lab3.notify;
 
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class Producer extends Thread {
     private final Buffer _buf;
@@ -9,8 +12,10 @@ class Producer extends Thread {
         _buf = buffer;
     }
 
+    @Override
     public void run() {
         for (int i = 0; i < 100; ++i) {
+            System.out.println("Producer puts " + i);
             _buf.put(i);
         }
     }
@@ -23,42 +28,24 @@ class Consumer extends Thread {
         this._buf = buffer;
     }
 
+    @Override
     public void run() {
         for (int i = 0; i < 100; ++i) {
-            while (_buf.isEmpty()) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            System.out.println(_buf.get());
+            System.out.println("Consumer received: " + _buf.get());
         }
     }
 }
 
-class BufferNode {
-    BufferNode next;
-    final int value;
-
-    BufferNode(int value) {
-        this.value = value;
-    }
-}
-
 class Buffer {
-    BufferNode head;
-    BufferNode tail;
-    private final int N;
-    private int currentSize = 0;
+    private final List<Integer> values = new ArrayList<>();
+    private final int M;
 
-    Buffer(int n) {
-        N = n;
+    Buffer(int m) {
+        this.M = m;
     }
 
-    synchronized void put(int value) {
-        while(currentSize >= N){
+    synchronized void put(int i) {
+        while (values.size() >= M) {
             try {
                 System.out.println("Producer is waiting");
                 wait();
@@ -66,21 +53,13 @@ class Buffer {
                 e.printStackTrace();
             }
         }
-        if (head == null) {
-            head = new BufferNode(value);
-        } else if (tail == null) {
-            tail = new BufferNode(value);
-            head.next = tail;
-        } else {
-            tail.next = new BufferNode(value);
-            tail = tail.next;
-        }
-        currentSize++;
+
+        values.add(i);
         notify();
     }
 
     synchronized int get() {
-        while(isEmpty()){
+        while (values.isEmpty()) {
             try {
                 System.out.println("Consumer is waiting");
                 wait();
@@ -88,33 +67,30 @@ class Buffer {
                 e.printStackTrace();
             }
         }
-        currentSize--;
-        int res = head.value;
-        head = head.next;
-        notify();
-        return res;
-    }
 
-    boolean isEmpty() {
-        return currentSize == 0;
+        int returnVal = values.get(0);
+        values.remove(0);
+        notify();
+        return returnVal;
     }
 }
 
 class PKmon {
     public static void main(String[] args) {
-        Buffer buffer = new Buffer(10);
+        Buffer buffer = new Buffer(100);
 
-        Consumer consumer = new Consumer(buffer);
-        Producer producer = new Producer(buffer);
+        int noProducers = 100;
+        int noConsumers = 100;
 
-        producer.start();
-        consumer.start();
+        ExecutorService service = Executors.newFixedThreadPool(noProducers + noConsumers);
 
-        try {
-            producer.join();
-            consumer.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        for (int i = 1; i <= noProducers; i++) {
+            service.submit(new Producer(buffer));
         }
+
+        for (int i = 1; i <= noConsumers; i++) {
+            service.submit(new Consumer(buffer));
+        }
+        service.shutdown();
     }
 }

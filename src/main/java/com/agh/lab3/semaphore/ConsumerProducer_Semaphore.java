@@ -1,91 +1,63 @@
 package com.agh.lab3.semaphore;
 
-import java.util.concurrent.TimeUnit;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 class Producer extends Thread {
     private final Buffer _buf;
-    private final Semaphore semaphore;
 
-    Producer(Semaphore semaphore, Buffer buffer) {
+    Producer(Buffer buffer) {
         _buf = buffer;
-        this.semaphore = semaphore;
     }
 
+    @Override
     public void run() {
         for (int i = 0; i < 100; ++i) {
-            semaphore.P();
             _buf.put(i);
-            semaphore.V();
         }
     }
 }
 
 class Consumer extends Thread {
-    private final Semaphore semaphore;
     private final Buffer _buf;
 
-    Consumer(Semaphore semaphore, Buffer buffer) {
-        this.semaphore = semaphore;
+    Consumer(Buffer buffer) {
         this._buf = buffer;
     }
 
+    @Override
     public void run() {
         for (int i = 0; i < 100; ++i) {
-            while (_buf.isEmpty()) {
-                try {
-                    TimeUnit.MILLISECONDS.sleep(100);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-            }
-            semaphore.P();
-            System.out.println(_buf.get());
-            semaphore.V();
+            System.out.println("Consumer received " + _buf.get());
         }
-    }
-}
-
-class BufferNode {
-    BufferNode next;
-    final int value;
-
-    BufferNode(int value) {
-        this.value = value;
     }
 }
 
 class Buffer {
-    BufferNode head;
-    BufferNode tail;
-    private final int N;
-    private int currentSize = 0;
+    private final List<Integer> values = new ArrayList<>();
+    private final int M;
+    private final Semaphore semaphore;
 
-    Buffer(int n) {
-        N = n;
+    Buffer(int m, Semaphore semaphore) {
+        this.M = m;
+        this.semaphore = semaphore;
     }
 
-    public void put(int value) {
-        if (head == null) {
-            head = new BufferNode(value);
-        } else if (tail == null) {
-            tail = new BufferNode(value);
-            head.next = tail;
-        } else {
-            tail.next = new BufferNode(value);
-            tail = tail.next;
-        }
-        currentSize++;
+    synchronized void put(int i) {
+        semaphore.P();
+        System.out.println("Producer puts " + i);
+        values.add(i);
+        semaphore.V();
     }
 
-    public int get() {
-        int res = head.value;
-        head = head.next;
-        currentSize--;
-        return res;
-    }
-
-    boolean isEmpty() {
-        return currentSize == 0;
+    synchronized int get() {
+        semaphore.P();
+        int returnVal = values.get(0);
+        values.remove(0);
+        semaphore.V();
+        return returnVal;
     }
 }
 
@@ -117,19 +89,20 @@ class Semaphore {
 class PKmon {
     public static void main(String[] args) {
         Semaphore semaphore = new Semaphore();
-        Buffer buffer = new Buffer(10);
+        Buffer buffer = new Buffer(100, semaphore);
 
-        Consumer consumer = new Consumer(semaphore, buffer);
-        Producer producer = new Producer(semaphore, buffer);
+        int noProducers = 100;
+        int noConsumers = 100;
 
-        producer.start();
-        consumer.start();
+        ExecutorService service = Executors.newFixedThreadPool(noProducers + noConsumers);
 
-        try {
-            producer.join();
-            consumer.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        for (int i = 1; i <= noProducers; i++) {
+            service.submit(new Producer(buffer));
         }
+
+        for (int i = 1; i <= noConsumers; i++) {
+            service.submit(new Consumer(buffer));
+        }
+        service.shutdown();
     }
 }
