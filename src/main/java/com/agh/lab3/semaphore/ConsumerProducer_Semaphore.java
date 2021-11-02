@@ -2,19 +2,19 @@ package com.agh.lab3.semaphore;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 class Producer extends Thread {
     private final Buffer _buf;
+    private final int iterations;
 
-    Producer(Buffer buffer) {
-        _buf = buffer;
+    Producer(Buffer buffer, int iterations) {
+        this._buf = buffer;
+        this.iterations = iterations;
     }
 
     @Override
     public void run() {
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < iterations; ++i) {
             _buf.put(i);
         }
     }
@@ -22,14 +22,16 @@ class Producer extends Thread {
 
 class Consumer extends Thread {
     private final Buffer _buf;
+    private final int iterations;
 
-    Consumer(Buffer buffer) {
+    Consumer(Buffer buffer, int iterations) {
         this._buf = buffer;
+        this.iterations = iterations;
     }
 
     @Override
     public void run() {
-        for (int i = 0; i < 100; ++i) {
+        for (int i = 0; i < iterations; ++i) {
             System.out.println("Consumer received " + _buf.get());
         }
     }
@@ -46,17 +48,35 @@ class Buffer {
     }
 
     synchronized void put(int i) {
+        while (values.size() >= M) {
+            try {
+                System.out.println("Producer is waiting");
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         semaphore.P();
         System.out.println("Producer puts " + i);
         values.add(i);
         semaphore.V();
+        notify();
     }
 
     synchronized int get() {
+        while (values.isEmpty()) {
+            try {
+                System.out.println("Consumer is waiting");
+                wait();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         semaphore.P();
         int returnVal = values.get(0);
         values.remove(0);
         semaphore.V();
+        notify();
         return returnVal;
     }
 }
@@ -90,19 +110,23 @@ class PKmon {
     public static void main(String[] args) {
         Semaphore semaphore = new Semaphore();
         Buffer buffer = new Buffer(100, semaphore);
+        List<Thread> threads = new ArrayList<>();
 
         int noProducers = 100;
         int noConsumers = 100;
 
-        ExecutorService service = Executors.newFixedThreadPool(noProducers + noConsumers);
-
-        for (int i = 1; i <= noProducers; i++) {
-            service.submit(new Producer(buffer));
+        for (int i = 0; i < noConsumers + noProducers; i++) {
+            Thread thread = i < noProducers ? new Producer(buffer, 100) : new Consumer(buffer, 100);
+            threads.add(thread);
+            thread.start();
         }
 
-        for (int i = 1; i <= noConsumers; i++) {
-            service.submit(new Consumer(buffer));
+        for (Thread thread : threads) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
-        service.shutdown();
     }
 }
