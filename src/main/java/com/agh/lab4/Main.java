@@ -1,8 +1,14 @@
 package com.agh.lab4;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static com.agh.lab4.PKmon.M;
 
@@ -18,10 +24,17 @@ class Producer extends Thread {
     @Override
     public void run() {
         for (int i = 0; i < iterations; ++i) {
-            int noValues = (int) (((Math.random() * 100) % M) + 1);
-            System.out.println("Producer puts " + i + " elements");
+            int noValues = (int) (((Math.random() * 10 * M) % M) + 1);
+            System.out.println("Producer puts " + noValues + " elements");
+            List<Integer> valuesToPut = new ArrayList<>();
             for (int j = 0; j < noValues; j++)
-                _buf.put(j);
+                valuesToPut.add(j);
+            _buf.put(valuesToPut);
+            try {
+                sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 }
@@ -38,25 +51,30 @@ class Consumer extends Thread {
     @Override
     public void run() {
         for (int i = 0; i < iterations; ++i) {
-            int noValues = (int) (((Math.random() * 100) % M) + 1);
+            int noValues = (int) (((Math.random() * 10 * M) % M) + 1);
             System.out.println("Consumer gets " + noValues + " elements");
-            for (int j = 0; j < noValues; j++) {
-                System.out.println("Consumer received: " + _buf.get());
-            }
+            List<Integer> returnedValues = _buf.get(noValues);
+            System.out.println("Returned values: " + returnedValues);
+        }
+        try {
+            sleep(100);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
 }
 
 class Buffer {
     private final List<Integer> values = new ArrayList<>();
-    private final int M;
+    private final int maxSize;
+    ReadWriteLock lock = new ReentrantReadWriteLock();
 
     Buffer(int m) {
-        this.M = m;
+        this.maxSize = m;
     }
 
-    synchronized void put(int i) {
-        while (values.size() >= M) {
+    synchronized void put(List<Integer> valuesToPut) {
+        while (values.size() + valuesToPut.size() >= maxSize) {
             try {
                 System.out.println("Producer is waiting");
                 wait();
@@ -64,13 +82,20 @@ class Buffer {
                 e.printStackTrace();
             }
         }
-        values.add(i);
+        lock.writeLock().lock();
+        try {
+            while (!valuesToPut.isEmpty()) {
+                values.add(valuesToPut.get(0));
+                valuesToPut.remove(0);
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
         notify();
-
     }
 
-    synchronized int get() {
-        while (values.isEmpty()) {
+    synchronized List<Integer> get(int noValues) {
+        while (values.size() < noValues) {
             try {
                 System.out.println("Consumer is waiting");
                 wait();
@@ -78,40 +103,55 @@ class Buffer {
                 e.printStackTrace();
             }
         }
-
-        int returnVal = values.get(0);
-        values.remove(0);
+        lock.readLock().lock();
+        List<Integer> results = new ArrayList<>();
+        try {
+            for (int i = 0; i < noValues; i++) {
+                results.add(values.get(0));
+                values.remove(0);
+            }
+        } finally {
+            lock.readLock().unlock();
+        }
         notify();
-        return returnVal;
+        return results;
     }
 }
 
 class PKmon {
-    public static int M = 2;
+    public static int M = 500;
 
     public static void main(String[] args) {
         Buffer buffer = new Buffer(2 * M);
         List<Thread> threads = new ArrayList<>();
 
-        int noProducers = 1;
-        int noConsumers = 1;
+        int noProducers = 25;
+        int noConsumers = 25;
 
-        Instant start = Instant.now();
+        try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+            {
+                Instant start = Instant.now();
+                for (int i = 0; i < noConsumers + noProducers; i++) {
+                    Thread thread = i < noProducers ? new Producer(buffer, 1) : new Consumer(buffer, 1);
+                    threads.add(thread);
+                    thread.start();
+                }
 
-        for (int i = 0; i < noConsumers + noProducers; i++) {
-            Thread thread = i < noProducers ? new Producer(buffer, 5) : new Consumer(buffer, 5);
-            threads.add(thread);
-            thread.start();
-        }
+                for (Thread thread : threads) {
+                    try {
+                        thread.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Instant finish = Instant.now();
+                double timeElapsed = Duration.between(start, finish).toMillis();
+                System.out.println("Czas działania: " + timeElapsed / 1000 + "s");
 
-        for (Thread thread : threads) {
-            try {
-                thread.join();
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+                output.append(String.valueOf(timeElapsed / 1000)).append("\n");
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
-        Instant finish = Instant.now();
-        double timeElapsed = Duration.between(start, finish).toMillis();
     }
 }
