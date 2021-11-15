@@ -1,4 +1,4 @@
-package com.agh.lab5;
+package com.agh.lab5.writerreader;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
