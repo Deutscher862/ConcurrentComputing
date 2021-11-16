@@ -31,6 +31,7 @@ class Main {
             }
         }
 
+        System.out.println("XD");
         Instant halftime = Instant.now();
 
         List<MainThreadGlobalLockList> threads2 = new ArrayList<>();
@@ -74,6 +75,9 @@ class MainThreadNodeLockList extends Thread {
         for (int i = 0; i < 100; i++) {
             list.add(i);
         }
+        for (int i = 0; i < 100; i++) {
+            list.contains(i);
+        }
     }
 }
 
@@ -88,6 +92,9 @@ class MainThreadGlobalLockList extends Thread {
     public void run() {
         for (int i = 0; i < 100; i++) {
             list.add(i);
+        }
+        for (int i = 0; i < 100; i++) {
+            list.contains(i);
         }
     }
 }
@@ -148,6 +155,7 @@ class ListWithNodeLocks {
             currentNode.unlock();
             currentNode = currentNode.next;
         }
+        currentNode.unlock();
         return false;
     }
 
