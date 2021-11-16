@@ -1,5 +1,11 @@
 package com.agh.lab5.grainblock;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
@@ -10,8 +16,9 @@ class Main {
         ListWithNodeLocks listWithNodeLocks = new ListWithNodeLocks();
         ListWithGlobalLock listWithGlobalLock = new ListWithGlobalLock();
 
+        Instant start = Instant.now();
         List<MainThreadNodeLockList> threads = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             MainThreadNodeLockList newThread = new MainThreadNodeLockList(listWithNodeLocks);
             threads.add(newThread);
             newThread.start();
@@ -24,8 +31,10 @@ class Main {
             }
         }
 
+        Instant halftime = Instant.now();
+
         List<MainThreadGlobalLockList> threads2 = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 100; i++) {
             MainThreadGlobalLockList newThread = new MainThreadGlobalLockList(listWithGlobalLock);
             threads2.add(newThread);
             newThread.start();
@@ -36,6 +45,19 @@ class Main {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+
+        Instant finish = Instant.now();
+        double nodeLockListTime = Duration.between(start, halftime).toMillis();
+        double listLockList = Duration.between(halftime, finish).toMillis();
+        System.out.println("Czas działania pierwszej listy: " + nodeLockListTime / 1000 + "s");
+        System.out.println("Czas działania drugiej listy: " + listLockList / 1000 + "s");
+
+        try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+            output.append(String.valueOf(nodeLockListTime / 1000)).append(" ");
+            output.append(String.valueOf(listLockList / 1000)).append("\n");
+        } catch (IOException e) {
+            e.printStackTrace();
         }
     }
 }
