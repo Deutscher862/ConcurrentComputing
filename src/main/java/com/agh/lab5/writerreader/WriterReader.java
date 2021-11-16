@@ -51,8 +51,8 @@ class MainThread extends Thread {
 
     void saveResults(long time) {
         try (java.io.Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
-            output.append(String.valueOf(noReaders)).append(" ");
-            output.append(String.valueOf(noWriters)).append(" ");
+            output.append(String.valueOf(noReaders)).append("\t");
+            output.append(String.valueOf(noWriters)).append("\t");
             output.append(String.valueOf(time)).append("\n");
         } catch (IOException ioException) {
             ioException.printStackTrace();

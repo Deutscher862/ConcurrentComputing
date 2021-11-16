@@ -8,6 +8,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -18,7 +19,7 @@ class Main {
 
         Instant start = Instant.now();
         List<MainThreadNodeLockList> threads = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 200; i++) {
             MainThreadNodeLockList newThread = new MainThreadNodeLockList(listWithNodeLocks);
             threads.add(newThread);
             newThread.start();
@@ -31,11 +32,10 @@ class Main {
             }
         }
 
-        System.out.println("XD");
         Instant halftime = Instant.now();
 
         List<MainThreadGlobalLockList> threads2 = new ArrayList<>();
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 200; i++) {
             MainThreadGlobalLockList newThread = new MainThreadGlobalLockList(listWithGlobalLock);
             threads2.add(newThread);
             newThread.start();
@@ -123,6 +123,19 @@ class LockNode {
     public Object getO() {
         return o;
     }
+
+    @Override
+    public boolean equals(Object o1) {
+        if (this == o1) return true;
+        if (o1 == null || getClass() != o1.getClass()) return false;
+        LockNode lockNode = (LockNode) o1;
+        return Objects.equals(o, lockNode.o) && Objects.equals(next, lockNode.next) && Objects.equals(lock, lockNode.lock);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(o, next, lock);
+    }
 }
 
 class ListWithNodeLocks {
@@ -144,18 +157,26 @@ class ListWithNodeLocks {
             return result;
         }
         LockNode currentNode = first;
-        while (currentNode.next.getO() != null) {
+        while (currentNode != null) {
+            if (o.equals(0))
+                System.out.println("XDDD");
             currentNode.lock();
-            currentNode.next.lock();
+            if (currentNode.next != null)
+                currentNode.next.lock();
             if (currentNode.getO().equals(o)) {
+                if (o.equals(0))
+                    System.out.println("XD");
                 currentNode.unlock();
-                currentNode.next.unlock();
+
+                if (currentNode.next != null) {
+                    currentNode.next.unlock();
+                }
+                first.unlock();
                 return true;
             }
             currentNode.unlock();
             currentNode = currentNode.next;
         }
-        currentNode.unlock();
         return false;
     }
 
