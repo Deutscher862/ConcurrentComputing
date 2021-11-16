@@ -17,9 +17,11 @@ class Main {
         ListWithNodeLocks listWithNodeLocks = new ListWithNodeLocks();
         ListWithGlobalLock listWithGlobalLock = new ListWithGlobalLock();
 
+        int noThreads = 200;
+
         Instant start = Instant.now();
         List<MainThreadNodeLockList> threads = new ArrayList<>();
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < noThreads; i++) {
             MainThreadNodeLockList newThread = new MainThreadNodeLockList(listWithNodeLocks);
             threads.add(newThread);
             newThread.start();
@@ -35,7 +37,7 @@ class Main {
         Instant halftime = Instant.now();
 
         List<MainThreadGlobalLockList> threads2 = new ArrayList<>();
-        for (int i = 0; i < 200; i++) {
+        for (int i = 0; i < noThreads; i++) {
             MainThreadGlobalLockList newThread = new MainThreadGlobalLockList(listWithGlobalLock);
             threads2.add(newThread);
             newThread.start();
@@ -55,6 +57,7 @@ class Main {
         System.out.println("Czas działania drugiej listy: " + listLockList / 1000 + "s");
 
         try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+            output.append(String.valueOf(noThreads)).append(" ");
             output.append(String.valueOf(nodeLockListTime / 1000)).append(" ");
             output.append(String.valueOf(listLockList / 1000)).append("\n");
         } catch (IOException e) {
@@ -78,6 +81,9 @@ class MainThreadNodeLockList extends Thread {
         for (int i = 0; i < 100; i++) {
             list.contains(i);
         }
+        for (int i = 0; i < 100; i++) {
+            list.remove(i);
+        }
     }
 }
 
@@ -95,6 +101,9 @@ class MainThreadGlobalLockList extends Thread {
         }
         for (int i = 0; i < 100; i++) {
             list.contains(i);
+        }
+        for (int i = 0; i < 100; i++) {
+            list.remove(i);
         }
     }
 }
@@ -141,79 +150,69 @@ class LockNode {
 class ListWithNodeLocks {
     private LockNode first = new LockNode(null);
     private LockNode last = new LockNode(null);
-    private final Lock sizeLock = new ReentrantLock();
-    private int size = 0;
 
     ListWithNodeLocks() {
         first.setNext(last);
     }
 
     boolean contains(Object o) {
-        if (size == 0) return false;
-        if (size == 1) {
-            first.lock();
-            boolean result = first.getO().equals(o);
-            first.unlock();
-            return result;
-        }
-        LockNode currentNode = first;
-        while (currentNode != null) {
-            if (o.equals(0))
-                System.out.println("XDDD");
-            currentNode.lock();
-            if (currentNode.next != null)
-                currentNode.next.lock();
-            if (currentNode.getO().equals(o)) {
-                if (o.equals(0))
-                    System.out.println("XD");
-                currentNode.unlock();
-
-                if (currentNode.next != null) {
-                    currentNode.next.unlock();
+        LockNode prev = null, currentNode = first;
+        first.lock();
+        try {
+            while (currentNode != null) {
+                if (currentNode.getO().equals(o)) {
+                    return true;
                 }
-                first.unlock();
-                return true;
+                prev = currentNode;
+                currentNode = currentNode.next;
+                try {
+                    if (currentNode != null) {
+                        currentNode.lock();
+                    }
+                } finally {
+                    prev.unlock();
+                }
             }
-            currentNode.unlock();
-            currentNode = currentNode.next;
+        } finally {
+            if (currentNode != null) {
+                currentNode.unlock();
+            }
         }
         return false;
     }
 
     boolean remove(Object o) {
-        if (!contains(o)) return false;
-        LockNode currentNode = first, prev = null;
-
-        if (currentNode != null && currentNode.getO().equals(o)) {
-            first.lock();
-            first = currentNode.next;
-            first.unlock();
-            sizeLock.lock();
-            size--;
-            sizeLock.unlock();
-            return true;
-        }
-
-        while (true) {
-            assert currentNode != null;
-            if (!(currentNode.next.getO() != null && !currentNode.getO().equals(o))) break;
-            currentNode.lock();
-            currentNode.next.lock();
-            if (prev != null)
-                prev.unlock();
-            prev = currentNode;
-            prev.lock();
-            if (currentNode.getO().equals(o)) {
-                prev.setNext(currentNode.next);
-                currentNode.unlock();
-                prev.unlock();
-                sizeLock.lock();
-                size--;
-                sizeLock.unlock();
-                return true;
+        LockNode prevprev = null, prev = null, currentNode = first;
+        currentNode.lock();
+        try {
+            while (currentNode != null) {
+                if (currentNode.getO().equals(o)) {
+                    if (prev != null) {
+                        prev.next = currentNode.next;
+                        currentNode.next = null;
+                    }
+                    return true;
+                }
+                prevprev = prev;
+                prev = currentNode;
+                currentNode = currentNode.next;
+                try {
+                    if (currentNode != null) {
+                        currentNode.lock();
+                    }
+                } finally {
+                    if (prevprev != null) {
+                        prevprev.unlock();
+                    }
+                }
             }
-            currentNode.unlock();
-            currentNode = currentNode.next;
+        } finally {
+            if (prev != prevprev) {
+                prev.unlock();
+            }
+            if (currentNode != null) {
+                currentNode.unlock();
+            }
         }
         return false;
     }
@@ -225,24 +224,15 @@ class ListWithNodeLocks {
         if (first.getO() == null) {
             first = newNode;
             newNode.setNext(last);
-            sizeLock.lock();
-            size++;
-            sizeLock.unlock();
             return true;
         } else if (last.getO() == null) {
             last = newNode;
             first.setNext(last);
-            sizeLock.lock();
-            size++;
-            sizeLock.unlock();
             first.unlock();
         } else {
             last.setNext(newNode);
             LockNode prev = last;
             last = newNode;
-            sizeLock.lock();
-            size++;
-            sizeLock.unlock();
             first.unlock();
             prev.unlock();
         }
