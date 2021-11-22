@@ -22,13 +22,15 @@ class Fork {
             }
         }
         state = true;
-        System.out.println(id + ": podniesiony");
     }
 
     synchronized void put() {
         state = false;
-        System.out.println(id + ": opuszczony");
         notifyAll();
+    }
+
+    public int getId() {
+        return id;
     }
 }
 
@@ -36,17 +38,21 @@ class Philosopher extends Thread {
     private int _counter = 0;
     private final Fork leftFork;
     private final Fork rightFork;
+    private final int id;
     private final Random random = new Random();
 
-    Philosopher(Fork leftFork, Fork rightFork) {
+    Philosopher(Fork leftFork, Fork rightFork, int id) {
         this.leftFork = leftFork;
         this.rightFork = rightFork;
+        this.id = id;
     }
 
     public void run() {
         while (true) {
             leftFork.pick();
+            System.out.println(id + ": podnosze " + leftFork.getId() + " widelec");
             rightFork.pick();
+            System.out.println(id + ": podnosze " + rightFork.getId() + " widelec");
             ++_counter;
             try {
                 int randInt = random.nextInt() * 100;
@@ -55,7 +61,9 @@ class Philosopher extends Thread {
                 e.printStackTrace();
             }
             leftFork.put();
+            System.out.println(id + ": odkladam " + leftFork.getId() + " widelec");
             rightFork.put();
+            System.out.println(id + ": odkladam " + rightFork.getId() + " widelec");
             if (_counter % 100 == 0) {
                 System.out.println("Filozof: " + Thread.currentThread() +
                         "jadlem " + _counter + " razy");
@@ -76,8 +84,8 @@ class Fil5mon {
 
         for (int i = 0; i < 5; i++) {
             Fork leftFork = forks.get(i);
-            Fork rightFork = forks.get(i % 5);
-            Philosopher philosopher = new Philosopher(leftFork, rightFork);
+            Fork rightFork = forks.get((i + 1) % 5);
+            Philosopher philosopher = new Philosopher(leftFork, rightFork, i + 1);
             philosophers.add(philosopher);
             philosopher.start();
         }
