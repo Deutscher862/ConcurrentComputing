@@ -1,5 +1,11 @@
 package com.agh.lab6.parallelpicking;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -68,7 +74,7 @@ class Philosopher extends Thread {
             System.out.println(id + ": odkladam " + leftFork.getId() + " widelec");
             rightFork.put();
             System.out.println(id + ": odkladam " + rightFork.getId() + " widelec");
-            if (_counter % 10 == 0) {
+            if (_counter % Fil5mon.NO_PICKING == 0) {
                 System.out.println("Filozof: " + id +
                         " jadlem " + _counter + " razy");
                 break;
@@ -78,31 +84,47 @@ class Philosopher extends Thread {
 }
 
 class Fil5mon {
+    public static int NO_PICKING;
+
     public static void main(String[] args) {
-        List<Fork> forks = new ArrayList<>();
-        List<Philosopher> philosophers = new ArrayList<>();
+        for (int j = 1; j <= 1000; j++) {
+            NO_PICKING = j;
+            System.out.println(NO_PICKING);
+            List<Fork> forks = new ArrayList<>();
+            List<Philosopher> philosophers = new ArrayList<>();
 
-        for (int i = 0; i < 5; i++) {
-            forks.add(new Fork(i + 1));
-        }
+            for (int i = 0; i < 5; i++) {
+                forks.add(new Fork(i + 1));
+            }
 
-        Object synchObject = new Object();
+            Object synchObject = new Object();
 
-        for (int i = 0; i < 5; i++) {
-            Fork leftFork = forks.get(i);
-            Fork rightFork = forks.get((i + 1) % 5);
-            Philosopher philosopher = new Philosopher(leftFork, rightFork, i + 1, synchObject);
-            philosophers.add(philosopher);
-            philosopher.start();
-        }
+            try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+                Instant start = Instant.now();
+                for (int i = 0; i < 5; i++) {
+                    Fork leftFork = forks.get(i);
+                    Fork rightFork = forks.get((i + 1) % 5);
+                    Philosopher philosopher = new Philosopher(leftFork, rightFork, i + 1, synchObject);
+                    philosophers.add(philosopher);
+                    philosopher.start();
+                }
 
-        for (Philosopher philosopher : philosophers) {
-            try {
-                philosopher.join();
-            } catch (InterruptedException e) {
+                for (Philosopher philosopher : philosophers) {
+                    try {
+                        philosopher.join();
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                }
+                Instant finish = Instant.now();
+                double timeElapsed = Duration.between(start, finish).toMillis();
+                System.out.println("Czas działania: " + timeElapsed / 1000 + "s");
+
+                output.append(String.valueOf(NO_PICKING)).append(" ");
+                output.append(String.valueOf(timeElapsed / 1000)).append("\n");
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
     }
 }
-
