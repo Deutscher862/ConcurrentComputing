@@ -17,7 +17,7 @@ class Main {
         ListWithNodeLocks listWithNodeLocks = new ListWithNodeLocks();
         ListWithGlobalLock listWithGlobalLock = new ListWithGlobalLock();
 
-        int noThreads = 200;
+        int noThreads = 350;
 
         Instant start = Instant.now();
         List<MainThreadNodeLockList> threads = new ArrayList<>();
@@ -156,7 +156,7 @@ class ListWithNodeLocks {
     }
 
     boolean contains(Object o) {
-        LockNode prev = null, currentNode = first;
+        LockNode prev, currentNode = first;
         first.lock();
         try {
             while (currentNode != null) {
