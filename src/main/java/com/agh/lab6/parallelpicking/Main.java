@@ -59,8 +59,8 @@ class Philosopher extends Thread {
             }
             ++_counter;
             try {
-                int randInt = random.nextInt() * 100;
-                TimeUnit.MILLISECONDS.sleep(randInt);
+                int randInt = random.nextInt();
+                TimeUnit.MILLISECONDS.sleep(randInt % 100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -68,9 +68,9 @@ class Philosopher extends Thread {
             System.out.println(id + ": odkladam " + leftFork.getId() + " widelec");
             rightFork.put();
             System.out.println(id + ": odkladam " + rightFork.getId() + " widelec");
-            if (_counter % 100 == 0) {
-                System.out.println("Filozof: " + Thread.currentThread() +
-                        "jadlem " + _counter + " razy");
+            if (_counter % 10 == 0) {
+                System.out.println("Filozof: " + id +
+                        " jadlem " + _counter + " razy");
                 break;
             }
         }

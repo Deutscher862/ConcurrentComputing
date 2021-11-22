@@ -55,8 +55,8 @@ class Philosopher extends Thread {
             System.out.println(id + ": podnosze " + rightFork.getId() + " widelec");
             ++_counter;
             try {
-                int randInt = random.nextInt() * 100;
-                TimeUnit.MILLISECONDS.sleep(randInt);
+                int randInt = random.nextInt();
+                TimeUnit.MILLISECONDS.sleep(randInt % 100);
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
