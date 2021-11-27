@@ -152,13 +152,13 @@ class Servant implements Proxy {
 
     @Override
     public void add(Object object) {
-        activationQueue.add(new AddRequest(buffer, object));
+        activationQueue.enqueue(new AddRequest(buffer, object));
     }
 
     @Override
     public CustomFuture remove() {
         CustomFuture customFuture = new CustomFuture();
-        activationQueue.add(new RemoveRequest(buffer, customFuture));
+        activationQueue.enqueue(new RemoveRequest(buffer, customFuture));
         return customFuture;
     }
 }
@@ -212,11 +212,11 @@ class RemoveRequest implements MethodRequest {
 class ActivationQueue {
     private final Queue<MethodRequest> queue = new ConcurrentLinkedQueue<>();
 
-    void add(MethodRequest request) {
+    void enqueue(MethodRequest request) {
         queue.add(request);
     }
 
-    MethodRequest poll() {
+    MethodRequest dequeue() {
         return queue.poll();
     }
 
@@ -236,11 +236,11 @@ class Scheduler extends Thread {
     public void run() {
         while (true) {
             if (!activationQueue.isEmpty()) {
-                MethodRequest methodRequest = activationQueue.poll();
+                MethodRequest methodRequest = activationQueue.dequeue();
                 if (methodRequest.guard()) {
                     methodRequest.call();
                 } else {
-                    activationQueue.add(methodRequest);
+                    activationQueue.enqueue(methodRequest);
                 }
             }
         }
