@@ -163,19 +163,23 @@ class Servant implements Proxy {
     }
 }
 
-interface MethodRequest {
-    void call();
+abstract class MethodRequest {
+    protected final Buffer buffer;
+    protected final Object object;
 
-    boolean guard();
-}
-
-class AddRequest implements MethodRequest {
-    private final Buffer buffer;
-    private final Object object;
-
-    AddRequest(Buffer buffer, Object object) {
+    MethodRequest(Buffer buffer, Object object) {
         this.buffer = buffer;
         this.object = object;
+    }
+
+    abstract void call();
+
+    abstract boolean guard();
+}
+
+class AddRequest extends MethodRequest {
+    AddRequest(Buffer buffer, Object object) {
+        super(buffer, object);
     }
 
     @Override
@@ -189,12 +193,11 @@ class AddRequest implements MethodRequest {
     }
 }
 
-class RemoveRequest implements MethodRequest {
-    private final Buffer buffer;
+class RemoveRequest extends MethodRequest {
     private final CustomFuture customFuture;
 
     RemoveRequest(Buffer buffer, CustomFuture customFuture) {
-        this.buffer = buffer;
+        super(buffer, null);
         this.customFuture = customFuture;
     }
 
