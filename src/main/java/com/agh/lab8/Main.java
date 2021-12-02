@@ -21,19 +21,21 @@ class Main {
 
         try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
             for (int no_threads = 1; no_threads < 20; no_threads++) {
-                NewSingleThreadExecutorTest test1 = new NewSingleThreadExecutorTest();
-                double result1 = test1.runExecutorTest(MAX_ITER, no_threads);
-                ThreadPoolTest test2 = new ThreadPoolTest(Executors.newFixedThreadPool(no_threads));
-                double result2 = test2.runExecutorTest(MAX_ITER, no_threads);
-                ThreadPoolTest test3 = new ThreadPoolTest(Executors.newCachedThreadPool());
-                double result3 = test3.runExecutorTest(MAX_ITER, no_threads);
-                ThreadPoolTest test4 = new ThreadPoolTest(Executors.newWorkStealingPool(no_threads));
-                double result4 = test4.runExecutorTest(MAX_ITER, no_threads);
+                List<ExecutorTest> executorTests = new ArrayList<>();
+                executorTests.add(new NewSingleThreadExecutorTest());
+                executorTests.add(new ThreadPoolTest(Executors.newFixedThreadPool(no_threads)));
+                executorTests.add(new ThreadPoolTest(Executors.newCachedThreadPool()));
+                executorTests.add(new ThreadPoolTest(Executors.newWorkStealingPool(no_threads)));
 
-                output.append(String.valueOf(result1)).append(" ");
-                output.append(String.valueOf(result2)).append(" ");
-                output.append(String.valueOf(result3)).append(" ");
-                output.append(String.valueOf(result4)).append("\n");
+                List<Double> results = new ArrayList<>();
+                for (ExecutorTest executorTest : executorTests) {
+                    results.add(executorTest.runExecutorTest(MAX_ITER, no_threads));
+                }
+
+                for (Double result : results) {
+                    output.append(String.valueOf(result)).append(" ");
+                }
+                output.append("\n");
             }
         } catch (IOException e) {
             e.printStackTrace();
