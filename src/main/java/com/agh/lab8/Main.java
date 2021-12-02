@@ -3,16 +3,94 @@ package com.agh.lab8;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 class Main {
     public static void main(String[] args) {
-        int MAX_ITER = 570;
-        ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(new ExecutorThread(MAX_ITER));
+        int MAX_ITER = 500;
+
+        try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+            for (int no_threads = 1; no_threads < 20; no_threads++) {
+                NewSingleThreadExecutorTest test1 = new NewSingleThreadExecutorTest();
+                double result1 = test1.runExecutorTest(MAX_ITER, no_threads);
+                ThreadPoolTest test2 = new ThreadPoolTest(Executors.newFixedThreadPool(no_threads));
+                double result2 = test2.runExecutorTest(MAX_ITER, no_threads);
+                ThreadPoolTest test3 = new ThreadPoolTest(Executors.newCachedThreadPool());
+                double result3 = test3.runExecutorTest(MAX_ITER, no_threads);
+                ThreadPoolTest test4 = new ThreadPoolTest(Executors.newWorkStealingPool(no_threads));
+                double result4 = test4.runExecutorTest(MAX_ITER, no_threads);
+
+                output.append(String.valueOf(result1)).append(" ");
+                output.append(String.valueOf(result2)).append(" ");
+                output.append(String.valueOf(result3)).append(" ");
+                output.append(String.valueOf(result4)).append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+interface ExecutorTest {
+    double runExecutorTest(int MAX_ITER, int no_threads);
+}
+
+class NewSingleThreadExecutorTest implements ExecutorTest {
+
+    @Override
+    public double runExecutorTest(int MAX_ITER, int no_threads) {
+        Instant start = Instant.now();
+        List<ExecutorService> executors = new ArrayList<>();
+        for (int i = 0; i < no_threads; i++) {
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            executors.add(executor);
+            executor.submit(new ExecutorThread(MAX_ITER));
+            executor.shutdown();
+        }
+        for (ExecutorService executor : executors) {
+            try {
+                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        Instant finish = Instant.now();
+        return (double) Duration.between(start, finish).toMillis() / 1000;
+    }
+}
+
+class ThreadPoolTest implements ExecutorTest {
+    private final ExecutorService executor;
+
+    ThreadPoolTest(ExecutorService executor) {
+        this.executor = executor;
+    }
+
+    @Override
+    public double runExecutorTest(int MAX_ITER, int no_threads) {
+        Instant start = Instant.now();
+        for (int i = 0; i < no_threads; i++) {
+            executor.submit(new ExecutorThread(MAX_ITER));
+        }
         executor.shutdown();
+        try {
+            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        Instant finish = Instant.now();
+        return (double) Duration.between(start, finish).toMillis() / 1000;
     }
 }
 
