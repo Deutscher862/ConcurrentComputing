@@ -7,11 +7,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-class Main{
+class Main {
     public static void main(String[] args) {
         int MAX_ITER = 570;
-        ExecutorThread executorThread = new ExecutorThread(MAX_ITER);
-        executorThread.start();
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(new ExecutorThread(MAX_ITER));
+        executor.shutdown();
     }
 }
 
@@ -49,10 +50,10 @@ class Mandelbrot extends JFrame {
     }
 }
 
-class ExecutorThread extends Thread{
+class ExecutorThread extends Thread {
     private final int MAX_ITER;
 
-    ExecutorThread(int MAX_ITER){
+    ExecutorThread(int MAX_ITER) {
         this.MAX_ITER = MAX_ITER;
     }
 
