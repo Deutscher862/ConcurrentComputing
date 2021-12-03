@@ -18,7 +18,7 @@ class Main {
         int MAX_ITER = 500;
 
         try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
-            for (int no_threads = 1; no_threads < 100; no_threads++) {
+            for (int no_threads = 1; no_threads < 2; no_threads++) {
                 List<Future<Double>> futures = new ArrayList<>();
 
                 ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -73,7 +73,7 @@ class NewSingleThreadExecutorTest extends ExecutorTest {
     public Double call() {
         Instant start = Instant.now();
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.submit(new ExecutorThread(MAX_ITER));
+        executor.execute(new ExecutorThread(MAX_ITER));
         executor.shutdown();
         boolean executed = false;
         try {
@@ -100,7 +100,7 @@ class ThreadPoolTest extends ExecutorTest {
     public Double call() {
         Instant start = Instant.now();
         for (int i = 0; i < no_threads; i++) {
-            executor.submit(new ExecutorThread(MAX_ITER));
+            executor.execute(new ExecutorThread(MAX_ITER));
         }
         executor.shutdown();
         boolean executed = false;
@@ -119,7 +119,7 @@ class ThreadPoolTest extends ExecutorTest {
 
 class Mandelbrot extends JFrame {
     private final double ZOOM = 150;
-    private final BufferedImage I = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
+    private final BufferedImage I;
     private double zx, zy, cX, cY, tmp;
     private final int MAX_ITER;
 
@@ -127,6 +127,7 @@ class Mandelbrot extends JFrame {
         super("Mandelbrot Set");
         setBounds(100, 100, 800, 600);
         setResizable(false);
+        I = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.MAX_ITER = MAX_ITER;
         for (int y = 0; y < getHeight(); y++) {
