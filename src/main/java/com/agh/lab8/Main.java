@@ -18,7 +18,8 @@ class Main {
         int MAX_ITER = 500;
 
         try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
-            for (int no_threads = 1; no_threads < 2; no_threads++) {
+            for (int no_threads = 1; no_threads <= 100; no_threads++) {
+                System.out.println(no_threads);
                 List<Future<Double>> futures = new ArrayList<>();
 
                 ExecutorService executor = Executors.newFixedThreadPool(4);
@@ -54,10 +55,13 @@ class Main {
 abstract class ExecutorTest implements Callable<Double> {
     protected final int MAX_ITER;
     protected final int no_threads;
+    protected final Mandelbrot mandelbrot;
 
     protected ExecutorTest(int max_iter, int no_threads) {
         MAX_ITER = max_iter;
         this.no_threads = no_threads;
+        mandelbrot = new Mandelbrot(MAX_ITER);
+        mandelbrot.setVisible(false);
     }
 
     @Override
@@ -73,7 +77,7 @@ class NewSingleThreadExecutorTest extends ExecutorTest {
     public Double call() {
         Instant start = Instant.now();
         ExecutorService executor = Executors.newSingleThreadExecutor();
-        executor.execute(new ExecutorThread(MAX_ITER));
+        executor.execute(new ExecutorThread(1, 1, mandelbrot));
         executor.shutdown();
         boolean executed = false;
         try {
@@ -100,7 +104,7 @@ class ThreadPoolTest extends ExecutorTest {
     public Double call() {
         Instant start = Instant.now();
         for (int i = 0; i < no_threads; i++) {
-            executor.execute(new ExecutorThread(MAX_ITER));
+            executor.execute(new ExecutorThread(i, no_threads, mandelbrot));
         }
         executor.shutdown();
         boolean executed = false;
@@ -130,8 +134,11 @@ class Mandelbrot extends JFrame {
         I = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         this.MAX_ITER = MAX_ITER;
+    }
+
+    void count(int first_x, int step) {
         for (int y = 0; y < getHeight(); y++) {
-            for (int x = 0; x < getWidth(); x++) {
+            for (int x = first_x; x < getWidth(); x += step) {
                 zx = zy = 0;
                 cX = (x - 400) / ZOOM;
                 cY = (y - 300) / ZOOM;
@@ -154,14 +161,18 @@ class Mandelbrot extends JFrame {
 }
 
 class ExecutorThread extends Thread {
-    private final int MAX_ITER;
+    private final int first_x;
+    private final int step;
+    private final Mandelbrot mandelbrot;
 
-    ExecutorThread(int MAX_ITER) {
-        this.MAX_ITER = MAX_ITER;
+    ExecutorThread(int first_x, int step, Mandelbrot mandelbrot) {
+        this.first_x = first_x;
+        this.step = step;
+        this.mandelbrot = mandelbrot;
     }
 
     @Override
     public void run() {
-        new Mandelbrot(MAX_ITER).setVisible(false);
+        mandelbrot.count(first_x, step);
     }
 }
