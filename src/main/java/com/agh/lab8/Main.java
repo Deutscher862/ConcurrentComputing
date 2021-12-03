@@ -11,82 +11,103 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
 class Main {
     public static void main(String[] args) {
         int MAX_ITER = 500;
 
         try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
-            for (int no_threads = 1; no_threads < 20; no_threads++) {
-                List<ExecutorTest> executorTests = new ArrayList<>();
-                executorTests.add(new NewSingleThreadExecutorTest());
-                executorTests.add(new ThreadPoolTest(Executors.newFixedThreadPool(no_threads)));
-                executorTests.add(new ThreadPoolTest(Executors.newCachedThreadPool()));
-                executorTests.add(new ThreadPoolTest(Executors.newWorkStealingPool(no_threads)));
+            for (int no_threads = 1; no_threads < 100; no_threads++) {
+                List<Future<Double>> futures = new ArrayList<>();
 
-                List<Double> results = new ArrayList<>();
-                for (ExecutorTest executorTest : executorTests) {
-                    results.add(executorTest.runExecutorTest(MAX_ITER, no_threads));
+                ExecutorService executor = Executors.newFixedThreadPool(4);
+                futures.add(executor.submit(new NewSingleThreadExecutorTest(MAX_ITER, no_threads)));
+                futures.add(executor.submit(new ThreadPoolTest(MAX_ITER, no_threads, Executors.newFixedThreadPool(no_threads))));
+                futures.add(executor.submit(new ThreadPoolTest(MAX_ITER, no_threads, Executors.newCachedThreadPool())));
+                futures.add(executor.submit(new ThreadPoolTest(MAX_ITER, no_threads, Executors.newWorkStealingPool(no_threads))));
+
+                executor.shutdown();
+
+                boolean executed = false;
+                try {
+                    while (!executed)
+                        if (executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS))
+                            executed = true;
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
 
-                for (Double result : results) {
-                    output.append(String.valueOf(result)).append(" ");
+                output.append(String.valueOf(no_threads)).append(" ");
+
+                for (Future<Double> future : futures) {
+                    output.append(String.valueOf(future.get())).append(" ");
                 }
                 output.append("\n");
             }
-        } catch (IOException e) {
+        } catch (IOException | ExecutionException | InterruptedException e) {
             e.printStackTrace();
         }
     }
 }
 
-interface ExecutorTest {
-    double runExecutorTest(int MAX_ITER, int no_threads);
-}
+abstract class ExecutorTest implements Callable<Double> {
+    protected final int MAX_ITER;
+    protected final int no_threads;
 
-class NewSingleThreadExecutorTest implements ExecutorTest {
+    protected ExecutorTest(int max_iter, int no_threads) {
+        MAX_ITER = max_iter;
+        this.no_threads = no_threads;
+    }
 
     @Override
-    public double runExecutorTest(int MAX_ITER, int no_threads) {
+    abstract public Double call();
+}
+
+class NewSingleThreadExecutorTest extends ExecutorTest {
+    NewSingleThreadExecutorTest(int MAX_ITER, int no_threads) {
+        super(MAX_ITER, no_threads);
+    }
+
+    @Override
+    public Double call() {
         Instant start = Instant.now();
-        List<ExecutorService> executors = new ArrayList<>();
-        for (int i = 0; i < no_threads; i++) {
-            ExecutorService executor = Executors.newSingleThreadExecutor();
-            executors.add(executor);
-            executor.submit(new ExecutorThread(MAX_ITER));
-            executor.shutdown();
-        }
-        for (ExecutorService executor : executors) {
-            try {
-                executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+        executor.submit(new ExecutorThread(MAX_ITER));
+        executor.shutdown();
+        boolean executed = false;
+        try {
+            while (!executed)
+                if (executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS))
+                    executed = true;
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
         Instant finish = Instant.now();
         return (double) Duration.between(start, finish).toMillis() / 1000;
     }
 }
 
-class ThreadPoolTest implements ExecutorTest {
+class ThreadPoolTest extends ExecutorTest {
     private final ExecutorService executor;
 
-    ThreadPoolTest(ExecutorService executor) {
+    ThreadPoolTest(int MAX_ITER, int no_threads, ExecutorService executor) {
+        super(MAX_ITER, no_threads);
         this.executor = executor;
     }
 
     @Override
-    public double runExecutorTest(int MAX_ITER, int no_threads) {
+    public Double call() {
         Instant start = Instant.now();
         for (int i = 0; i < no_threads; i++) {
             executor.submit(new ExecutorThread(MAX_ITER));
         }
         executor.shutdown();
+        boolean executed = false;
         try {
-            executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS);
+            while (!executed)
+                if (executor.awaitTermination(Long.MAX_VALUE, TimeUnit.NANOSECONDS))
+                    executed = true;
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
@@ -98,15 +119,16 @@ class ThreadPoolTest implements ExecutorTest {
 
 class Mandelbrot extends JFrame {
     private final double ZOOM = 150;
-    private final BufferedImage I;
+    private final BufferedImage I = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
     private double zx, zy, cX, cY, tmp;
+    private final int MAX_ITER;
 
     Mandelbrot(int MAX_ITER) {
         super("Mandelbrot Set");
         setBounds(100, 100, 800, 600);
         setResizable(false);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        I = new BufferedImage(getWidth(), getHeight(), BufferedImage.TYPE_INT_RGB);
+        this.MAX_ITER = MAX_ITER;
         for (int y = 0; y < getHeight(); y++) {
             for (int x = 0; x < getWidth(); x++) {
                 zx = zy = 0;
