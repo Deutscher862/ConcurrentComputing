@@ -163,4 +163,5 @@ buildNumber.properties
 /.idea/runConfigurations.xml
 /.idea/inspectionProfiles/Project_Default.xml
 /results.txt
-/lab9/node_modules
+/src/main/java/com/agh/lab9/node_modules/
+/src/main/java/com/agh/lab9/package-lock.json
