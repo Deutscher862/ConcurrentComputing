@@ -163,3 +163,4 @@ buildNumber.properties
 /.idea/runConfigurations.xml
 /.idea/inspectionProfiles/Project_Default.xml
 /results.txt
+/lab9/node_modules
