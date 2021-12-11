@@ -3,6 +3,8 @@
     "description": "...",
     "dependencies": {
       "q": "1.5.x",
-      "async": "3.2.x"
+      "async": "3.2.x",
+      "walkdir": "0.4.1",
+      "perf_hooks" : "0.0.1"
     }
   }
