@@ -89,13 +89,11 @@ class Buffer implements CSProcess {
                 case 3:
                     if (tl < hd) {
                         req[index - 2].read();
-                        request
                         tl++;
                         int item = buffer[tl % buffer.length];
                         out[index - 2].write(item);
                     } else if (countdown <= 2) {
                         req[index - 2].read();
-                        request
                         out[index - 2].write(-1);
                         countdown--;
                     }
