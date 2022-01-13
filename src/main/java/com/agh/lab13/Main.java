@@ -2,24 +2,59 @@ package com.agh.lab13;
 
 import org.jcsp.lang.*;
 
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Writer;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 public final class Main {
     public static void main(String[] args) {
-        int size = 3;
+        int size = 10;
+        try (Writer output = new BufferedWriter(new FileWriter("results.txt", true))) {
+            for (int operations = 1; operations <= 1000; operations++) {
+                double avgDisorder = 0;
+                double avgOrder = 0;
+                for (int status = 0; status < 10; status++) {
+                    avgDisorder += runTest(size, operations, 0);
+                    avgOrder += runTest(size, operations, 1);
+                }
+                avgDisorder /= 10;
+                avgOrder /= 10;
+
+                output.append(String.valueOf(operations))
+                        .append(" ")
+                        .append(String.valueOf(avgDisorder))
+                        .append(" ")
+                        .append(String.valueOf(avgOrder))
+                        .append("\n");
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    static double runTest(int size, int operations, int bufferType) {
         One2OneChannelInt prodChan = Channel.one2oneInt();
         One2OneChannelInt consReq = Channel.one2oneInt();
         One2OneChannelInt consChan = Channel.one2oneInt();
 
+        Object buffer = bufferType == 0 ? new DisorderBuffer(prodChan, consReq, consChan, size) : new OrderBuffer(prodChan, consReq, consChan, size);
+
         CSProcess[] procList = {
-                new Producer(prodChan, 5),
+                new Producer(prodChan, operations),
                 new Consumer(consReq, consChan),
-                new DisorderBuffer(prodChan, consReq, consChan, size)
+                (CSProcess) buffer
         };
         Parallel par = new Parallel(procList);
+
+        Instant start = Instant.now();
         par.run();
+        Instant finish = Instant.now();
+        return Duration.between(start, finish).toMillis();
     }
 }
 
@@ -36,11 +71,11 @@ class Producer implements CSProcess {
     public void run() {
         for (int i = 0; i < n; i++) {
             int item = (int) (Math.random() * 100) + 1;
-            System.out.println("Wpisuję: " + item);
+//            System.out.println("Wpisuję: " + item);
             channel.out().write(item);
         }
         channel.out().write(-1);
-        System.out.println("Producent konczy prace");
+//        System.out.println("Producent konczy prace");
     }
 }
 
@@ -63,14 +98,9 @@ class Consumer implements CSProcess {
             if (item == -1) {
                 break;
             }
-            System.out.println("Czytam: " + item);
-            try {
-                TimeUnit.MILLISECONDS.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+//            System.out.println("Czytam: " + item);
         }
-        System.out.println("Konsument konczy prace");
+//        System.out.println("Konsument konczy prace");
     }
 }
 
@@ -115,7 +145,7 @@ class OrderBuffer implements CSProcess {
                 }
             }
         }
-        System.out.println("Bufor konczy prace");
+//        System.out.println("Bufor konczy prace");
     }
 }
 
@@ -176,13 +206,14 @@ class DisorderBuffer implements CSProcess {
                         item = buffer[pointer];
                         buffer[pointer] = 0;
                         currentSize--;
-                    } else {
+                    }
+                    if (item == -1) {
                         countdown--;
                     }
                     consumerOutput.out().write(item);
                 }
             }
         }
-        System.out.println("Bufor konczy prace");
+//        System.out.println("Bufor konczy prace");
     }
 }
